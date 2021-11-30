@@ -1,10 +1,10 @@
-function [ CEWshp,EmbedWatermarkRecord] = CEWEmbedAndEncrypt(keyseed,orishappath,cewshppath,WatermarkImageFilePath,REncryptLength,RWatermarkLength,AEncryptLength,AWatermarkLength)
+function [ CEWshp,EmbedWatermarkRecord] = CEWEmbedAndEncrypt(keyTransMatrix,orishappath,cewshppath,WatermarkImageFilePath,REncryptLength,RWatermarkLength,AEncryptLength,AWatermarkLength)
 MaxKeyLength = 1000000;
-rng(keyseed);
-keylimit = 100;
-RKeyArray=randi([-keylimit,keylimit],1,MaxKeyLength);
-rng(keyseed+1);
-AKeyArray = randi([-keylimit,keylimit],1,MaxKeyLength);
+% rng(keyseed);
+% keylimit = 100;
+% RKeyArray=randi([-keylimit,keylimit],1,MaxKeyLength);
+% rng(keyseed+1);
+% AKeyArray = randi([-keylimit,keylimit],1,MaxKeyLength);
 shpdata=shaperead(orishappath);
 [WatermarkSequence,WatermarkLength] = ReadWatermarkImage(WatermarkImageFilePath);
 EmbedWatermarkRecord = zeros(WatermarkLength,2);
@@ -23,6 +23,7 @@ if strcmp(shpdata(1).Geometry,'Line') || strcmp(shpdata(1).Geometry,'Point') || 
     
     ptcount=numel(xarray);
     OIDArray = 1:ptcount;
+    keyIndex = 1;
     for j=2:ptcount-1
         x1=xarray(j-1);
         x2=xarray(j);
@@ -46,18 +47,23 @@ if strcmp(shpdata(1).Geometry,'Line') || strcmp(shpdata(1).Geometry,'Point') || 
             continue;
         end
         CurOID = OIDArray(j);
-        RKey = RKeyArray(CurOID);
+        RKey = keyTransMatrix(CurOID);
+%         keyIndex = keyIndex + 1;
         EncryptedR=R*exp(RKey*REncryptLength);
         [CEWR, EmbedWatermarkRecord] = EmbedCEWWatermarkInDistanceRatio(fileID,EncryptedR,REncryptLength,RWatermarkLength,WatermarkSequence,WatermarkLength,EmbedWatermarkRecord);
         WatermarkCapacityCount = WatermarkCapacityCount + 1;
-%         CEWR = EncryptedR;
-        AKey = AKeyArray(CurOID);
-
+        
+        CEWR = EncryptedR;
+        
+        AKey = keyTransMatrix(CurOID);
+%         keyIndex = keyIndex + 1;
         EncryptedA=mod(A+pi+AKey*AEncryptLength,2*pi)-pi;
         [CEWA,EmbedWatermarkRecord] = EmbedCEWWatermarkInAngle(fileID,EncryptedA,AEncryptLength,AWatermarkLength,WatermarkSequence,WatermarkLength,EmbedWatermarkRecord);
         WatermarkCapacityCount = WatermarkCapacityCount + 1;
-%         CEWA = EncryptedA;
-%         fprintf(fileID,'R:%18.15f RKey:%18.15f EncryptedR:%18.15f CEWR:%18.15f A:%18.15f AKey:%18.15f EncryptedA:%18.15f CEWA::%18.15f\r\n',R,RKey,EncryptedR,CEWR,A,AKey,EncryptedA,CEWA);
+        
+        CEWA = EncryptedA;
+        fprintf(fileID,'R:%18.15f RKey:%18.15f EncryptedR:%18.15f CEWR:%18.15f A:%18.15f AKey:%18.15f EncryptedA:%18.15f CEWA::%18.15f\r\n',R,RKey,EncryptedR,CEWR,A,AKey,EncryptedA,CEWA);
+        
         deltaA=CEWA-A;
         Encryptedx3=x2+((x3-x2)*cos(deltaA)-(y3-y2)*sin(deltaA))*CEWR/R;
         Encryptedy3=y2+((y3-y2)*cos(deltaA)+(x3-x2)*sin(deltaA))*CEWR/R;

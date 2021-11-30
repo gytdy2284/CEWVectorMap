@@ -1,12 +1,12 @@
-function [CryptographyNC, WatermarkNC, ExtractedWatermarkRecord] = CEWExtractAndDecrypt(KeySeed,CEWShapeFilePath,DecryptedShapeFilePath,OriShapeFilePath,OriWatermarkImageFilePath,ExtractedWatermarkImageFilePath,REncryptLength,RWatermarkLength,AEncryptLength,AWatermarkLength)
+function [CryptographyNC, WatermarkNC, ExtractedWatermarkRecord] = CEWExtractAndDecrypt(keyTransMatrix,CEWShapeFilePath,DecryptedShapeFilePath,OriShapeFilePath,OriWatermarkImageFilePath,ExtractedWatermarkImageFilePath,REncryptLength,RWatermarkLength,AEncryptLength,AWatermarkLength)
 %UNTITLED4 Summary of this function goes here
 %   Detailed explanation goes here
 MaxKeyLength = 1000000;
-rng(KeySeed);
-keylimit = 100;
-RKeyArray=randi([-keylimit,keylimit],1,MaxKeyLength);
-rng(KeySeed+1);
-AKeyArray = randi([-keylimit,keylimit],1,MaxKeyLength);
+% rng(KeySeed);
+% keylimit = 100;
+% RKeyArray=randi([-keylimit,keylimit],1,MaxKeyLength);
+% rng(KeySeed+1);
+% AKeyArray = randi([-keylimit,keylimit],1,MaxKeyLength);
 shpdata=shaperead(CEWShapeFilePath);
 
 [OriWatermarkSequence,OriWatermarkLength,ImageHeigth,ImageWidth] = ReadWatermarkImage(OriWatermarkImageFilePath);
@@ -28,6 +28,7 @@ if strcmp(shpdata(1).Geometry,'Line') || strcmp(shpdata(1).Geometry,'Point') || 
     
     ptcount=numel(xarray);
     OIDArray = 1:ptcount;
+    keyIndex = 1;
 %     for j=2:ptcount-1
     for j=ptcount-1:-1:2
         x1=xarray(j-1);
@@ -55,16 +56,19 @@ if strcmp(shpdata(1).Geometry,'Line') || strcmp(shpdata(1).Geometry,'Point') || 
         ExtractedWatermarkRecord(WatermarkBitIndex,WatermarkBit+1)=ExtractedWatermarkRecord(WatermarkBitIndex,WatermarkBit+1) + 1;
          
         CurOID = OIDArray(j);
-        RKey = RKeyArray(CurOID);
+        RKey = keyTransMatrix(CurOID);
+%         keyIndex = keyIndex + 1;
         DecryptedR=R*exp(-RKey*REncryptLength);
         deltaR=DecryptedR-R;
         
         [WatermarkBitIndex,WatermarkBit] = ExtractCEWWatermarkFromAngle(fileID,A,AEncryptLength,AWatermarkLength,OriWatermarkLength);
         ExtractedWatermarkRecord(WatermarkBitIndex,WatermarkBit+1)=ExtractedWatermarkRecord(WatermarkBitIndex,WatermarkBit+1) + 1;
-        AKey = AKeyArray(CurOID);
+        AKey = keyTransMatrix(CurOID);
+%         keyIndex = keyIndex + 1;
         DecryptedA=mod(A+pi-AKey*AEncryptLength,2*pi)-pi;
 
-%         fprintf(fileID,'ExtractedR:%18.15f RKey:%18.15f DecryptedR:%18.15f ExtractedA:%18.15f AKey:%18.15f DecryptedA:%18.15f\r\n',R,RKey,DecryptedR,A,AKey,DecryptedA);
+        fprintf(fileID,'ExtractedR:%18.15f RKey:%18.15f DecryptedR:%18.15f ExtractedA:%18.15f AKey:%18.15f DecryptedA:%18.15f\r\n',R,RKey,DecryptedR,A,AKey,DecryptedA);
+
         deltaA=DecryptedA-A;
         Encryptedx3=x2+((x3-x2)*cos(deltaA)-(y3-y2)*sin(deltaA))*DecryptedR/R;
         Encryptedy3=y2+((y3-y2)*cos(deltaA)+(x3-x2)*sin(deltaA))*DecryptedR/R;
